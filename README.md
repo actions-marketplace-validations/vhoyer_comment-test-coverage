@@ -2,6 +2,8 @@
 
 A GitHub action to comment on a PR on GitHub with a simple test coverage summary.
 
+> Notice: the documentation here only mentions angular, but in fact it works with whatever you want.
+
 ## Usage with Karma + Angular
 1. Add `"codeCoverage": true,` under test > options in angular.json
 2. In your karma.conf.js set coverageIstanbulReporter.reports to include `json-summary` and save it to the /coverage directory if using the sample setup below
@@ -21,11 +23,11 @@ jobs:
         run: npm run test -- --no-watch --no-progress --browsers=ChromeHeadlessCI
 
       - name: Comment Test Coverage
-        uses: AthleticNet/comment-test-coverage@1.1
+        uses: AthleticNet/comment-test-coverage@1.3.0
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
           path: coverage/coverage-summary.json
-          title: Karma Test Coverage
+          title: Test Coverage
 ```
 
 ## Usage with Jest
@@ -41,7 +43,7 @@ jobs:
 
 ## How to edit action
 1. Clone down repo, `npm install`, and make changes
-2. Run `npm run package` 
+2. Run `npm run package`
 3. Commit changes
 4. Create a new release on GitHub to publish latest version of the action. See https://help.github.com/en/actions/building-actions/publishing-actions-in-github-marketplace
 
