@@ -23,7 +23,7 @@ jobs:
         run: npm run test -- --no-watch --no-progress --browsers=ChromeHeadlessCI
 
       - name: Comment Test Coverage
-        uses: AthleticNet/comment-test-coverage@1.3.0
+        uses: vhoyer/comment-test-coverage@1.3.0
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
           path: coverage/coverage-summary.json
