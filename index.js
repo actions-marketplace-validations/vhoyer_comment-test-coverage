@@ -3,6 +3,10 @@ const core = require("@actions/core");
 const github = require("@actions/github");
 const fs = require('fs');
 
+const meta = {
+  commentFrom: 'Comment Test Coverage as table',
+}
+
 async function run() {
   try {
     const inputs = {
@@ -29,7 +33,7 @@ async function run() {
     const data = fs.readFileSync(`${process.env.GITHUB_WORKSPACE}/${inputs.path}`, 'utf8');
     const json = JSON.parse(data);
 
-    const coverage = `
+    const coverage = `<!--json:${JSON.stringify(meta)}-->
 |${inputs.title}| %                           | values                                                              |
 |---------------|:---------------------------:|:-------------------------------------------------------------------:|
 |Statements     |${json.total.statements.pct}%|( ${json.total.statements.covered} / ${json.total.statements.total} )|
@@ -48,7 +52,57 @@ async function run() {
       owner,
       repo,
       issue_number: issueNumber,
-      body: `\`\`\`json\n${JSON.stringify(list, null, 2)}\n\`\`\``,
+      body: `
+<details>
+<summary> whole response</summary>
+
+\`\`\`json\n${
+JSON.stringify(
+  list.data
+    // .filter(c => c.user.type === 'Bot' && /^<!--json:{.*?}-->/.test(c.body))
+    // .map((c) => JSON.parse(c.body.replace(/^<!--json:|-->.*$/, '')))
+  ,
+  null,
+  2)
+}\n\`\`\`
+
+</details>
+
+<details>
+<summary> filtered</summary>
+
+\`\`\`json\n${
+JSON.stringify(
+  list.data
+    .filter(c => c.user.type === 'Bot' && /^<!--json:{.*?}-->/.test(c.body))
+    // .map((c) => JSON.parse(c.body.replace(/^<!--json:|-->.*$/, '')))
+  ,
+  null,
+  2)
+}\n\`\`\`
+
+</details>
+
+<details>
+<summary> transformed</summary>
+
+\`\`\`json\n${
+JSON.stringify(
+  list.data
+    .filter(c => c.user.type === 'Bot' && /^<!--json:{.*?}-->/.test(c.body))
+    .map((c) => ({
+      meta: JSON.parse(c.body.replace(/^<!--json:|-->(.|\n|\r)*$/g, '')),
+      comment: c,
+    }))
+  .filter(c => c.meta.commentFrom === meta.commentFrom)
+  .map(c => c.id)
+  ,
+  null,
+  2)
+}\n\`\`\`
+
+</details>
+`,
     });
 
     await octokit.issues.createComment({
