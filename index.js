@@ -75,8 +75,6 @@ async function deletePreviousComments({ owner, repo, octokit, issueNumber }) {
   }
 
   const asyncDeleteComment = (comment) => {
-    console.log('deleting comment:', comment);
-
     return octokit.issues.deleteComment({ owner, repo, comment_id: comment.id });
   }
 
@@ -85,8 +83,6 @@ async function deletePreviousComments({ owner, repo, octokit, issueNumber }) {
     repo,
     issue_number: issueNumber,
   }).then(response => response.data);
-
-  console.log('commentList:', commentList);
 
   await Promise.all(
     commentList
