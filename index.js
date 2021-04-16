@@ -3,7 +3,7 @@ const core = require("@actions/core");
 const github = require("@actions/github");
 const fs = require('fs');
 
-const meta = {
+const originMeta = {
   commentFrom: 'Comment Test Coverage as table',
 }
 
@@ -33,7 +33,7 @@ async function run() {
     const data = fs.readFileSync(`${process.env.GITHUB_WORKSPACE}/${inputs.path}`, 'utf8');
     const json = JSON.parse(data);
 
-    const coverage = `<!--json:${JSON.stringify(meta)}-->
+    const coverage = `<!--json:${JSON.stringify(originMeta)}-->
 |${inputs.title}| %                           | values                                                              |
 |---------------|:---------------------------:|:-------------------------------------------------------------------:|
 |Statements     |${json.total.statements.pct}%|( ${json.total.statements.covered} / ${json.total.statements.total} )|
@@ -42,67 +42,11 @@ async function run() {
 |Lines          |${json.total.lines.pct}%     |( ${json.total.lines.covered} / ${json.total.lines.total} )          |
 `;
 
-    const list = await octokit.issues.listComments({
+    await deletePreviousComments({
+      issueNumber,
+      octokit,
       owner,
       repo,
-      issue_number: issueNumber,
-    });
-
-    await octokit.issues.createComment({
-      owner,
-      repo,
-      issue_number: issueNumber,
-      body: `
-<details>
-<summary> whole response</summary>
-
-\`\`\`json\n${
-JSON.stringify(
-  list.data
-    // .filter(c => c.user.type === 'Bot' && /^<!--json:{.*?}-->/.test(c.body))
-    // .map((c) => JSON.parse(c.body.replace(/^<!--json:|-->.*$/, '')))
-  ,
-  null,
-  2)
-}\n\`\`\`
-
-</details>
-
-<details>
-<summary> filtered</summary>
-
-\`\`\`json\n${
-JSON.stringify(
-  list.data
-    .filter(c => c.user.type === 'Bot' && /^<!--json:{.*?}-->/.test(c.body))
-    // .map((c) => JSON.parse(c.body.replace(/^<!--json:|-->.*$/, '')))
-  ,
-  null,
-  2)
-}\n\`\`\`
-
-</details>
-
-<details>
-<summary> transformed</summary>
-
-\`\`\`json\n${
-JSON.stringify(
-  list.data
-    .filter(c => c.user.type === 'Bot' && /^<!--json:{.*?}-->/.test(c.body))
-    .map((c) => ({
-      meta: JSON.parse(c.body.replace(/^<!--json:|-->(.|\n|\r)*$/g, '')),
-      comment: c,
-    }))
-  .filter(c => c.meta.commentFrom === meta.commentFrom)
-  .map(c => c.id)
-  ,
-  null,
-  2)
-}\n\`\`\`
-
-</details>
-`,
     });
 
     await octokit.issues.createComment({
@@ -115,6 +59,36 @@ JSON.stringify(
     core.debug(inspect(error));
     core.setFailed(error.message);
   }
+}
+
+async function deletePreviousComments({ owner, repo, octokit, issueNumber }) {
+  function onlyPreviousCoverageComments(comment) {
+    const regexMarker = /^<!--json:{.*?}-->/;
+    const extractMetaFromMarker = (body) => JSON.parse(body.replace(/^<!--json:|-->(.|\n|\r)*$/g, ''));
+
+    if (comment.user.type !== 'Bot') return false;
+    if (!regexMarker.test(comment.body)) return false;
+
+    const meta = extractMetaFromMarker(comment.body);
+
+    return meta.commentFrom === originMeta.commentFrom;
+  }
+
+  async function asyncDeleteComment(comment) {
+    return octokit.issues.deleteComment({ owner, repo, comment_id: comment.id });
+  }
+
+  const commentList = await octokit.issues.listComments({
+    owner,
+    repo,
+    issue_number: issueNumber,
+  }).then(response => response.data);
+
+  await Promise.all(
+    commentList
+    .filter(onlyPreviousCoverageComments)
+    .map(asyncDeleteComment)
+  );
 }
 
 run();
