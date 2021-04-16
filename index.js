@@ -62,7 +62,7 @@ async function run() {
 }
 
 async function deletePreviousComments({ owner, repo, octokit, issueNumber }) {
-  function onlyPreviousCoverageComments(comment) {
+  const onlyPreviousCoverageComments = (comment) => {
     const regexMarker = /^<!--json:{.*?}-->/;
     const extractMetaFromMarker = (body) => JSON.parse(body.replace(/^<!--json:|-->(.|\n|\r)*$/g, ''));
 
@@ -74,7 +74,9 @@ async function deletePreviousComments({ owner, repo, octokit, issueNumber }) {
     return meta.commentFrom === originMeta.commentFrom;
   }
 
-  async function asyncDeleteComment(comment) {
+  const asyncDeleteComment = (comment) => {
+    console.log('deleting comment:', comment);
+
     return octokit.issues.deleteComment({ owner, repo, comment_id: comment.id });
   }
 
@@ -83,6 +85,8 @@ async function deletePreviousComments({ owner, repo, octokit, issueNumber }) {
     repo,
     issue_number: issueNumber,
   }).then(response => response.data);
+
+  console.log('commentList:', commentList);
 
   await Promise.all(
     commentList
